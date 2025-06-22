@@ -39,7 +39,7 @@ jobs:
           cd ..
 
       - name: Build IPA
-        run: flutter build ipa --release
+        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist -v --no-codesign
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
