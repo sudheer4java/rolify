@@ -26,9 +26,13 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Install Bundler
+        run: gem install bundler
+
       - name: Install CocoaPods dependencies and update DKImagePickerController
         run: |
           cd ios
+          bundle install --jobs 4 --retry 3 || true
           pod repo update
           pod update DKImagePickerController
           pod install
