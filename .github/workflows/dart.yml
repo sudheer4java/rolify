@@ -2,54 +2,43 @@ name: iOS-ipa-build
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
 
 jobs:
   build-ios:
-    name: 🎉 iOS Build
-    runs-on: macos-13  # Use a specific recent macOS version for better pod compatibility
+    runs-on: macos-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.x'  # Use latest stable Flutter
+          flutter-version: "3.22.1" # Set your required Flutter version
 
-      - name: Install dependencies
+      - name: Get dependencies
         run: flutter pub get
 
-      - name: Set iOS deployment target (if not set in Podfile)
+      - name: Install CocoaPods dependencies and update DKImagePickerController
         run: |
-          sed -i '' 's/^# platform :ios, .*/platform :ios, "12.0"/' ios/Podfile
-        # This ensures the platform version is at least 12.0, required by many pods.
+          cd ios
+          pod repo update
+          pod update DKImagePickerController
+          pod install
+          cd ..
 
-      - name: Update CocoaPods repo
-        run: pod repo update
-        working-directory: ios
+      - name: Build IPA
+        run: flutter build ipa --release
 
-      - name: Install CocoaPods dependencies
-        run: pod install
-        working-directory: ios
-
-      - name: Build iOS App (no codesign)
-        run: flutter build ios --release --no-codesign
-
-      - name: Prepare IPA output directory
-        run: mkdir Payload
-        working-directory: build/ios/iphoneos
-
-      - name: Move Runner.app to Payload
-        run: mv Runner.app/ Payload
-        working-directory: build/ios/iphoneos
-
-      - name: Zip output
-        run: zip -qq -r -9 FlutterIpaExport.ipa Payload
-        working-directory: build/ios/iphoneos
-
-      - name: Upload binaries to release
-        uses: svenstaro/upload-release-action@v2
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: build/ios/iphoneos/FlutterIpaExport.ipa
-          tag: v1.0
-          overwrite: true
-          body: "This is first release"
+          name: ipa
+          path: build/ios/ipa/*.ipa
