@@ -6,25 +6,39 @@ on:
 jobs:
   build-ios:
     name: 🎉 iOS Build
-    runs-on: macos-latest
+    runs-on: macos-13  # Use a specific recent macOS version for better pod compatibility
     steps:
       - uses: actions/checkout@v3
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.x' 
-      - run: flutter pub get
-      
+          flutter-version: '3.19.x'  # Use latest stable Flutter
 
-      - run: pod repo update
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Set iOS deployment target (if not set in Podfile)
+        run: |
+          sed -i '' 's/^# platform :ios, .*/platform :ios, "12.0"/' ios/Podfile
+        # This ensures the platform version is at least 12.0, required by many pods.
+
+      - name: Update CocoaPods repo
+        run: pod repo update
         working-directory: ios
 
-      - run: flutter build ios --release --no-codesign
+      - name: Install CocoaPods dependencies
+        run: pod install
+        working-directory: ios
 
-      - run: mkdir Payload
+      - name: Build iOS App (no codesign)
+        run: flutter build ios --release --no-codesign
+
+      - name: Prepare IPA output directory
+        run: mkdir Payload
         working-directory: build/ios/iphoneos
 
-      - run: mv Runner.app/ Payload
+      - name: Move Runner.app to Payload
+        run: mv Runner.app/ Payload
         working-directory: build/ios/iphoneos
 
       - name: Zip output
