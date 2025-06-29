@@ -1,0 +1,52 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build_ios:
+    name: Build Flutter IPA (iOS)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.19.6" # Change based on your pubspec.yaml
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install CocoaPods dependencies
+        working-directory: ios
+        run: |
+          pod install
+
+      - name: Build iOS release
+        run: |
+          flutter build ios --release --no-codesign
+
+      - name: Archive IPA
+        run: |
+          cd ios
+          xcodebuild -workspace Runner.xcworkspace \
+                     -scheme Runner \
+                     -sdk iphoneos \
+                     -configuration Release \
+                     -archivePath build/Runner.xcarchive archive \
+                     DEVELOPMENT_TEAM="" CODE_SIGN_IDENTITY="" CODE_SIGNING_ALLOWED=NO
+
+          xcodebuild -exportArchive \
+                     -archivePath build/Runner.xcarchive \
+                     -exportOptionsPlist exportOptions.plist \
+                     -exportPath build/IPA \
+                     CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: ios/build/IPA
